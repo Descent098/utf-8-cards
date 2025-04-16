@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cards Demo</title>
+    <style>
+        :root{
+            --columns: 13;
+            --rows: 4;
+        }
+        *{
+            box-sizing: border-box;
+            margin:0;
+            padding:0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        form{
+            padding:1.3rem;
+            font-size:1.2rem;
+            font-weight:600;
+        }
+        button{
+            padding:1.1rem;
+            border-radius: .7rem;
+            border: 1px solid black;
+            background: transparent;
+            transition: all 1ms ease-in-out;
+            font-size:1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        button:hover{
+            padding:1.12rem;
+            box-shadow: #000000 5px 5px 10px;
+        }
+        button:active{
+            padding:1.1rem;
+            box-shadow: #000000 5px 5px 10px;
+        }
+        #cards{
+            display: grid;
+            grid-template-columns: repeat(var(--columns), 1fr);
+            grid-template-rows: repeat(var(--rows), 1fr);
+            grid-column-gap: 2px;
+            grid-row-gap: 2px;
+            font-size:4rem;
+            overflow-x:auto;
+            padding:1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="cards"></div>
+    <form>
+        <button type="button" onclick="renderDeck();this.focus()">Reset Changes</button><br>
+        
+        <input type="range" name="fontsize" min="1" max="8" step="0.1" value=2
+        oninput="Array.from(document.getElementsByClassName('card')).forEach( (el) =>{el.style.fontSize=`${this.value}rem`})">
+        <label for="fontsize">Font Size (in rem)</label> <br>
+        
+        <input type="range" name="fontweight" min="400" max="800" step="400" value=400
+        oninput="Array.from(document.getElementsByClassName('card')).forEach( (el) =>{el.style.fontWeight=`${this.value}`})">
+        <label for="fontsize">Font Weight</label><br>
+        
+        <input type="range" name="lineHeight" min="1" max="4" step=".1" value=1.6
+        oninput="Array.from(document.getElementsByClassName('card')).forEach( (el) =>{el.style.lineHeight=`${this.value}`})">
+        <label for="lineHeight">Line Height</label><br>
+        
+        <input type="range" name="rows" min="1" max="15" step="1" value=4
+        oninput="document.querySelector(':root').style.setProperty('--rows', `${this.value}`)">
+        <label for="rows">Rows</label><br>
+        
+        <input type="range" name="columns" min="1" max="20" step="1" value=13
+        oninput="document.querySelector(':root').style.setProperty('--columns', `${this.value}`)">
+        <label for="columns">Columns</label><br>
+
+        <input type="color" name="fontColor" value="black"
+        oninput="Array.from(document.getElementsByClassName('card')).forEach( (el) =>{el.style.color=`${this.value}`})"
+        style="margin-top:1.2rem;">
+        <label for="fontColor">Font Color</label><br>
+    </form>
+    <script>
+        class Card{
+            /** 
+            Suit {"♠"|"♥"|"♦"|"♣"} - The suit of the card
+            acesHigh {Boolean} - The value of the card between 1-13 (ace is 1 and becomes 14 if acesHigh)
+            */
+            constructor (suit, value, acesHigh = false){
+                let color = "black"
+                if (suit ==="♥" || suit ==="♦"){
+                    color = "red"
+                }
+                let letter = "A"
+                switch (suit){
+                    case "♠": letter = "A"; break;
+                    case "♥": letter = "B"; break;
+                    case "♦": letter = "C"; break;
+                    case "♣": letter = "D"; break;
+                    default: throw new Error(`Provided suit is invalid ${suit}`);break;
+                }
+        
+                let characterNumber = value
+                if (value>9){ // Need to start with hex values A-E
+                    if (value >11){ 
+                        characterNumber = (value+1).toString(16).toUpperCase()
+                    } else{
+                        characterNumber = value.toString(16).toUpperCase()
+                    }
+                }
+                this.suit = suit
+                this.character = `&#x1F0${letter}${characterNumber};` // UTF-8 Character 
+                this.html = `<span class="card" style="color:${color}">&#x1F0${letter}${characterNumber};</span>`    
+        
+                if(value == 1  && acesHigh){
+                    this.value = 14
+                }
+                
+                this.value = value // The raw value (i.e. queen > jack since queen is higher value)
+        
+                if (value == 14){ // Aces high, and it's an ace
+                    this.number = 11
+                } else if (value > 10){ // The base value (i.e. queen == jack since both are 10)
+                    this.number = 10 
+                } else{
+                    this.number = value
+                }
+            }
+        }
+        
+        class Deck{
+            constructor (){
+                let cards = []
+                let deck = {
+                    "♠":[],
+                    "♥":[],
+                    "♦":[],
+                    "♣":[]
+                }
+                for (const suit of ["♠","♥","♦","♣"]){
+                    for (let i=1;i<=13; i++){
+                        let newCard = new Card(suit, i)
+                        cards.push(newCard)
+                        deck[newCard.suit].push(newCard)
+                    }
+                }
+                this.cards = cards            // The cards in the deck in an unordered array
+                this.deck = deck              // The cards in the deck, by suit
+                this.remaining = cards.length // Number of cards remaining
+            }
+        
+            /** Gets a random card, if remove is True will remove it from this.remaining*/
+            getRandomCard(remove=false){
+                if (this.cards.length){
+                    const cardIndex = Math.floor(Math.random()*this.cards.length)
+                    const card = this.cards[cardIndex]
+                    if (remove){
+                        this.deck[card.suit].splice(this.deck[card.suit].indexOf(card), 1)
+                        this.cards.splice(cardIndex, 1)
+                    }
+                    this.remaining = this.cards.length
+                    return card
+                } else {
+                    throw new Error("No Cards remaining")
+                }
+            }
+        }
+        function renderDeck(){
+            let a = new Deck()
+            document.getElementById("cards").innerHTML = ""
+            for (const card of a.cards){
+                document.getElementById("cards").innerHTML += card.html
+            }
+        }
+        renderDeck()
+        
+    </script>
+    
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack Demo</title>
+    <style>
+        *{
+            box-sizing: border-box;
+            margin:0;
+            padding:0;
+            font-family:sans-serif;
+            font-weight:600;
+        }
+        #gameDemo{
+            background: #1bbc1b7a;
+            font-size: 1.4rem;
+            padding: 1rem;
+            border-radius: 1.1rem;
+        }
+        #playerCards,
+        #dealerCards,
+        #gameOutcome{
+            background:white;
+            padding: .4rem;
+            border-radius:1.1rem;
+            min-height:40px;
+            max-width:fit-content;
+            margin-bottom:.5rem;
+            min-width:40%;
+        }
+        #gameDemo button{
+            border: 1px solid black;
+            border-radius: .7rem;
+            padding:.6rem;
+            background:white;
+            font-size:4rem;
+            font-weight:400;
+            height:min-content;
+        }
+        #gameDemo .card{
+            font-size:5rem;
+            font-weight:400;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameDemo">
+        <div>
+            <span>Player: 
+                <div id="playerCards"></div>
+            </span>
+        </div>
+        <div>
+            <span>Dealer:
+                <div id="dealerCards"></div>
+            </span>
+        </div>
+        <div style="display:flex; gap:2rem;">
+            <button type="button" onclick="startGame()">Start</button>
+            <button type="button" onclick="endGame()">Stay</button>
+            <button type="button" onclick="hit(playerCards)">+🂠</button>
+        </div>
+        Outcome
+        <div id="gameOutcome"></div>
+    <div>
+
+<script>
+    class Card{
+        /** 
+        Suit {"♠"|"♥"|"♦"|"♣"} - The suit of the card
+        acesHigh {Boolean} - The value of the card between 1-13 (ace is 1 and becomes 14 if acesHigh)
+        */
+        constructor (suit, value, acesHigh = false){
+            let color = "black"
+            if (suit ==="♥" || suit ==="♦"){
+                color = "red"
+            }
+            let letter = "A"
+            switch (suit){
+                case "♠": letter = "A"; break;
+                case "♥": letter = "B"; break;
+                case "♦": letter = "C"; break;
+                case "♣": letter = "D"; break;
+                default: throw new Error(`Provided suit is invalid ${suit}`);break;
+            }
+    
+            let characterNumber = value
+            if (value>9){ // Need to start with hex values A-E
+                if (value >11){ 
+                    characterNumber = (value+1).toString(16).toUpperCase()
+                } else{
+                    characterNumber = value.toString(16).toUpperCase()
+                }
+            }
+            this.suit = suit
+            this.character = `&#x1F0${letter}${characterNumber};` // UTF-8 Character 
+            this.html = `<span class="card" style="color:${color}">&#x1F0${letter}${characterNumber};</span>`    
+
+            if(value == 1  && acesHigh){
+                this.value = 14
+            }
+            
+            this.value = value // The raw value (i.e. queen > jack since queen is higher value)
+
+            if (value == 14){ // Aces high, and it's an ace
+                this.number = 11
+            } else if (value > 10){ // The base value (i.e. queen == jack since both are 10)
+                this.number = 10 
+            } else{
+                this.number = value
+            }
+        }
+    }
+    
+    class Deck{
+        constructor (){
+            let cards = []
+            let deck = {
+                "♠":[],
+                "♥":[],
+                "♦":[],
+                "♣":[]
+            }
+            for (const suit of ["♠","♥","♦","♣"]){
+                for (let i=1;i<=13; i++){
+                    let newCard = new Card(suit, i)
+                    cards.push(newCard)
+                    deck[newCard.suit].push(newCard)
+                }
+            }
+            this.cards = cards            // The cards in the deck in an unordered array
+            this.deck = deck              // The cards in the deck, by suit
+            this.remaining = cards.length // Number of cards remaining
+        }
+    
+        /** Gets a random card, if remove is True will remove it from this.remaining*/
+        getRandomCard(remove=false){
+            if (this.cards.length){
+                const cardIndex = Math.floor(Math.random()*this.cards.length)
+                const card = this.cards[cardIndex]
+                if (remove){
+                    this.deck[card.suit].splice(this.deck[card.suit].indexOf(card), 1)
+                    this.cards.splice(cardIndex, 1)
+                }
+                this.remaining = this.cards.length
+                return card
+            } else {
+                throw new Error("No Cards remaining")
+            }
+        }
+    } 
+
+
+let dealerCards = []
+let playerCards = []
+let deck = new Deck()
+
+function getHandValues(hand){
+    let totalNumber = 0
+    let totalValue = 0
+    for (const card of hand){
+        totalNumber += card.number
+        totalValue += card.value
+    }
+    return [totalNumber, totalValue]
+}
+function checkBust(hand){
+    let [total, _] = getHandValues(hand)
+    if (total > 21){
+        return true
+    }
+    return false
+}
+
+function hit(hand){
+    hand.push(deck.getRandomCard(true))
+    displayCards()
+}
+
+function displayCards(){
+    document.getElementById("playerCards").innerHTML = ""
+    for (const card of playerCards){
+        document.getElementById("playerCards").innerHTML += card.html
+    }
+    document.getElementById("playerCards").innerHTML += `total: ${getHandValues(playerCards)[0]}`
+
+    document.getElementById("dealerCards").innerHTML = ""
+    for (const card of dealerCards){
+        document.getElementById("dealerCards").innerHTML += card.html
+    }
+    document.getElementById("dealerCards").innerHTML += `total: ${getHandValues(dealerCards)[0]}`
+}
+
+function startGame(){
+    let acesHigh = false
+    deck = new Deck(acesHigh)
+
+    dealerCards = [deck.getRandomCard(true), deck.getRandomCard(true)]
+    playerCards = [deck.getRandomCard(true), deck.getRandomCard(true)]
+    document.getElementById("gameOutcome").innerHTML = ""
+    displayCards()
+    
+}
+
+function endGame(){
+    let t = getHandValues(playerCards)
+    playerTotalNumber = t[0]
+    playerTotalValue = t[1]
+    t = getHandValues(dealerCards)
+    dealerTotalNumber = t[0] 
+    dealerTotalValue = t[1]
+    
+    if (checkBust(playerCards) || playerTotalNumber < dealerTotalNumber){
+        // Replace with logic to display
+        document.getElementById("gameOutcome").innerHTML = "You Lose"
+        console.log("You Lose") 
+    } else if (playerTotalNumber == dealerTotalNumber){ // Tie
+        if (playerTotalValue > dealerTotalValue){
+            document.getElementById("gameOutcome").innerHTML = "You win"
+            console.log("You win")
+        } else{
+            document.getElementById("gameOutcome").innerHTML = "You Lose"
+            console.log("You Lose")
+        }
+    } else{
+        // dealer Tries to win
+        while (dealerTotalNumber <= playerTotalNumber){
+            hit(dealerCards)
+            t = getHandValues(dealerCards)
+            dealerTotalNumber = t[0] 
+            dealerTotalValue = t[1]
+            
+        }
+        if (checkBust(dealerCards)){
+            console.log(1)
+            document.getElementById("gameOutcome").innerHTML = "You win"
+            console.log("You win")
+        } else{
+            console.log(2)
+            if (dealerTotalValue >= playerTotalValue ){
+                document.getElementById("gameOutcome").innerHTML = "You Lose"
+                console.log("You Lose")
+            } else {
+                console.log(3)
+                document.getElementById("gameOutcome").innerHTML = "You win"
+                console.log("You win")
+            }
+        }
+    }
+}
+</script>
+    
+</body>
+</html>
